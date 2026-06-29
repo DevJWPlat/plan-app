@@ -15,6 +15,7 @@ const pricingStore = usePricingStore()
 const activeForm = ref('route')
 const editingRouteId = ref(null)
 const editingVoteId = ref(null)
+const editingCostId = ref(null)
 
 const routeForm = ref({
   city: '',
@@ -144,10 +145,34 @@ const saveVoteItem = () => {
   resetVoteForm()
 }
 
-const addCost = () => {
+const saveCost = () => {
   if (!costForm.value.title || !costForm.value.amount) return
 
-  pricingStore.addCost(costForm.value)
+  if (editingCostId.value) {
+    pricingStore.updateCost(editingCostId.value, costForm.value)
+    editingCostId.value = null
+  } else {
+    pricingStore.addCost(costForm.value)
+  }
+
+  resetCostForm()
+}
+
+const startEditingCost = (cost) => {
+  activeForm.value = 'costs'
+  editingCostId.value = cost.id
+
+  costForm.value = {
+    title: cost.title || '',
+    category: cost.category || 'Accommodation',
+    country: cost.country || '',
+    amount: cost.amount || '',
+    notes: cost.notes || '',
+  }
+}
+
+const cancelEditingCost = () => {
+  editingCostId.value = null
   resetCostForm()
 }
 
@@ -393,29 +418,87 @@ const logout = () => {
         </section>
 
         <section v-if="activeForm === 'costs'" class="card mt-5">
-            <h3 class="text-xl font-bold">Add cost</h3>
+          <h3 class="text-xl font-bold">
+            {{ editingCostId ? 'Edit cost' : 'Add cost' }}
+          </h3>
 
-            <form class="mt-5 space-y-4" @submit.prevent="addCost">
+          <form class="mt-5 space-y-4" @submit.prevent="saveCost">
             <input v-model="costForm.title" class="input" placeholder="Title, e.g. Kotor apartment" />
 
             <select v-model="costForm.category" class="input">
-                <option>Accommodation</option>
-                <option>Car</option>
-                <option>Fuel</option>
-                <option>Trips</option>
-                <option>Food</option>
-                <option>Other</option>
+              <option>Accommodation</option>
+              <option>Car</option>
+              <option>Fuel</option>
+              <option>Trips</option>
+              <option>Food</option>
+              <option>Other</option>
             </select>
 
             <input v-model="costForm.country" class="input" placeholder="Country, e.g. Montenegro" />
-            <input v-model="costForm.amount" type="number" class="input" placeholder="Amount, e.g. 250" />
+
+            <div class="relative">
+
+              <input
+                v-model="costForm.amount"
+                type="number"
+                step="0.01"
+                class="input pl-8"
+                placeholder="Amount, e.g. 250"
+              />
+            </div>
+
             <textarea v-model="costForm.notes" class="input min-h-28" placeholder="Notes"></textarea>
 
             <button class="w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white dark:bg-cyan-400 dark:text-slate-950">
-                Add cost
+              {{ editingCostId ? 'Save cost' : 'Add cost' }}
             </button>
-            </form>
+
+            <button
+              v-if="editingCostId"
+              type="button"
+              class="w-full rounded-2xl bg-slate-100 px-5 py-3 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              @click="cancelEditingCost"
+            >
+              Cancel edit
+            </button>
+          </form>
+
+          <div v-if="pricingStore.costs.length" class="mt-6 space-y-3">
+            <h4 class="font-bold">Current costs</h4>
+
+            <article
+              v-for="cost in pricingStore.costs"
+              :key="cost.id"
+              class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="font-bold">{{ cost.title }}</p>
+                  <p class="muted text-sm">
+                    {{ cost.category }} · £{{ cost.amount }}
+                  </p>
+                </div>
+
+                <div class="flex gap-2">
+                  <button
+                    class="rounded-full bg-blue-100 px-3 py-2 text-xs font-bold text-blue-700 dark:bg-cyan-400/10 dark:text-cyan-300"
+                    @click="startEditingCost(cost)"
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    class="rounded-full bg-red-100 px-3 py-2 text-xs font-bold text-red-700 dark:bg-red-400/10 dark:text-red-300"
+                    @click="pricingStore.deleteCost(cost.id)"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </article>
+          </div>
         </section>
+
         <section v-if="activeForm === 'settings'" class="card mt-5">
             <h3 class="text-xl font-bold">Admin settings</h3>
 

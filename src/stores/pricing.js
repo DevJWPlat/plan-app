@@ -12,18 +12,34 @@ export const usePricingStore = defineStore('pricing', {
   },
 
   actions: {
+    saveCosts() {
+      localStorage.setItem('plan-app-costs', JSON.stringify(this.costs))
+    },
+
     addCost(cost) {
       this.costs.push({
         id: Date.now(),
         ...cost,
       })
 
-      localStorage.setItem('plan-app-costs', JSON.stringify(this.costs))
+      this.saveCosts()
+    },
+
+    updateCost(id, updatedCost) {
+      const index = this.costs.findIndex((cost) => cost.id === id)
+      if (index === -1) return
+
+      this.costs[index] = {
+        ...this.costs[index],
+        ...updatedCost,
+      }
+
+      this.saveCosts()
     },
 
     deleteCost(id) {
       this.costs = this.costs.filter((cost) => cost.id !== id)
-      localStorage.setItem('plan-app-costs', JSON.stringify(this.costs))
+      this.saveCosts()
     },
   },
 })
