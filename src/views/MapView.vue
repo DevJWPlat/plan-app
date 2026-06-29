@@ -19,7 +19,7 @@ let routeLine = null
 let fullscreenRouteLine = null
 
 const validStops = computed(() => {
-  return routeStore.stops.filter((stop) => stop.lat && stop.lng)
+  return routeStore.activeTripStops.filter((stop) => stop.lat && stop.lng)
 })
 
 const addTiles = (mapInstance) => {
@@ -117,7 +117,7 @@ onMounted(() => {
 })
 
 watch(
-  () => routeStore.stops,
+  () => routeStore.activeTripStops,
   () => {
     routeLine = renderMapData(map, markersLayer, routeLine)
     fullscreenRouteLine = renderMapData(
@@ -164,7 +164,7 @@ watch(
     <section
       class="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
     >
-      <div ref="mapElement" class="h-[150px] w-full"></div>
+      <div ref="mapElement" class="h-[150px] md:h-[500px] w-full"></div>
     </section>
 
     <Teleport to="body">

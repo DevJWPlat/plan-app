@@ -13,7 +13,7 @@ const routeStore = useRouteStore()
       View the trip as a day-by-day route timeline. Click on each stop for more details.
     </p>
 
-    <section v-if="routeStore.stops.length === 0" class="card mt-6">
+    <section v-if="routeStore.activeTripStops.length === 0" class="card mt-6">
       <h3 class="text-xl font-bold">No route stops yet</h3>
       <p class="muted mt-2">
         Add your first route stop from the admin page.
@@ -32,7 +32,7 @@ const routeStore = useRouteStore()
             <div class="absolute left-5 top-4 h-full w-0.5 bg-slate-200 dark:bg-slate-800"></div>
 
             <article
-            v-for="(stop, index) in routeStore.stops"
+            v-for="(stop, index) in routeStore.activeTripStops"
             :key="stop.id"
             class="relative pl-14"
             >

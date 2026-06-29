@@ -1,9 +1,20 @@
 import { defineStore } from 'pinia'
+import { useTripsStore } from './trips'
 
 export const useRouteStore = defineStore('route', {
   state: () => ({
     stops: JSON.parse(localStorage.getItem('plan-app-route-stops')) || [],
   }),
+
+  getters: {
+    activeTripStops: (state) => {
+      const tripsStore = useTripsStore()
+
+      return state.stops.filter((stop) => {
+        return String(stop.tripId || 1) === String(tripsStore.activeTripId)
+      })
+    },
+  },
 
   actions: {
     saveStops() {
@@ -11,8 +22,11 @@ export const useRouteStore = defineStore('route', {
     },
 
     addStop(stop) {
+      const tripsStore = useTripsStore()
+
       this.stops.push({
         id: Date.now(),
+        tripId: tripsStore.activeTripId,
         ...stop,
         lat: Number(stop.lat),
         lng: Number(stop.lng),

@@ -6,11 +6,13 @@ import { useRouteStore } from '../stores/route'
 import { useVotesStore } from '../stores/votes'
 import { usePricingStore } from '../stores/pricing'
 import { Upload } from 'lucide-vue-next'
+import { useActivitiesStore } from '../stores/activities'
 
 const authStore = useAuthStore()
 const routeStore = useRouteStore()
 const votesStore = useVotesStore()
 const pricingStore = usePricingStore()
+const activitiesStore = useActivitiesStore()
 
 const activeForm = ref('route')
 
@@ -25,6 +27,10 @@ const placeResults = ref([])
 
 const selectedAvatar = ref(null)
 const showLogoutModal = ref(false)
+
+const editingActivityId = ref(null)
+const showDeleteActivityImageModal = ref(false)
+
 
 const routeForm = ref({
     city: '',
@@ -94,6 +100,18 @@ const resetCostForm = () => {
     routeStopId: '',
   }
 }
+
+const activityForm = ref({
+  routeStopId: '',
+  title: '',
+  category: 'Activity',
+  description: '',
+  imageUrl: '',
+  link: '',
+  cost: '',
+  duration: '',
+  bookingStatus: 'not-booked',
+})
 
 const validateRouteForm = () => {
   routeErrors.value = {}
@@ -270,6 +288,62 @@ const saveCost = () => {
   resetCostForm()
 }
 
+const resetActivityForm = () => {
+  activityForm.value = {
+    routeStopId: '',
+    title: '',
+    category: 'Activity',
+    description: '',
+    imageUrl: '',
+    link: '',
+    cost: '',
+    duration: '',
+    bookingStatus: 'not-booked',
+  }
+}
+
+const saveActivity = () => {
+  if (!activityForm.value.title || !activityForm.value.routeStopId) return
+
+  if (editingActivityId.value) {
+    activitiesStore.updateActivity(editingActivityId.value, activityForm.value)
+    editingActivityId.value = null
+  } else {
+    activitiesStore.addActivity(activityForm.value)
+  }
+
+  resetActivityForm()
+}
+
+const startEditingActivity = (activity) => {
+  activeForm.value = 'activities'
+  editingActivityId.value = activity.id
+  activityForm.value = { ...activity }
+}
+
+const cancelEditingActivity = () => {
+  editingActivityId.value = null
+  resetActivityForm()
+}
+
+const handleActivityImageUpload = (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  const reader = new FileReader()
+
+  reader.onload = () => {
+    activityForm.value.imageUrl = reader.result
+  }
+
+  reader.readAsDataURL(file)
+}
+
+const deleteActivityImage = () => {
+  activityForm.value.imageUrl = ''
+  showDeleteActivityImageModal.value = false
+}
+
 const handleAvatarUpload = (event) => {
   const file = event.target.files?.[0]
   if (!file) return
@@ -314,6 +388,21 @@ const deleteVoteImage = () => {
   voteForm.value.imageUrl = ''
   showDeleteVoteImageModal.value = false
 }
+
+const showAdminMenu = ref(false)
+
+const adminMenuItems = [
+  { label: 'Route', value: 'route' },
+  { label: 'Activities', value: 'activities' },
+  { label: 'Votes', value: 'votes' },
+  { label: 'Costs', value: 'costs' },
+  { label: 'Settings', value: 'settings' },
+]
+
+const selectAdminMenuItem = (value) => {
+  activeForm.value = value
+  showAdminMenu.value = false
+}
 </script>
 
 <template>
@@ -335,7 +424,6 @@ const deleteVoteImage = () => {
         <template v-else-if="!authStore.isAdmin">
         <section class="card">
             <h2 class="text-2xl font-bold">Admin only</h2>
-            <p class="muted mt-2">This area is only for Jonny, Emily, Josh and Elise.</p>
         </section>
         </template>
 
@@ -343,45 +431,61 @@ const deleteVoteImage = () => {
         <h2 class="text-3xl font-bold">Admin</h2>
         <p class="muted mt-3">Add stops, votes and costs for the trip.</p>
 
-        <section class="mt-6 grid grid-cols-4 gap-3">
+        <section class="mt-6 md:hidden">
             <button
-            class="rounded-2xl border px-2 py-3 text-xs font-bold"
-            :class="activeForm === 'route'
-                ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
-                : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
-            @click="activeForm = 'route'"
+                class="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4 font-bold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+                @click="showAdminMenu = true"
             >
-            Route
+                <span>Admin menu</span>
+                <span class="text-sm text-slate-500 capitalize">{{ activeForm }}</span>
             </button>
+        </section>
 
+        <section class="mt-6 hidden md:grid grid-cols-5 gap-3">
             <button
-            class="rounded-2xl border px-2 py-3 text-xs font-bold"
-            :class="activeForm === 'votes'
-                ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
-                : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
-            @click="activeForm = 'votes'"
+                class="rounded-2xl border px-2 py-3 text-xs font-bold"
+                :class="activeForm === 'route'
+                    ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
+                    : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
+                @click="activeForm = 'route'"
             >
-            Votes
+                Route
             </button>
-
             <button
-            class="rounded-2xl border px-2 py-3 text-xs font-bold"
-            :class="activeForm === 'costs'
-                ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
-                : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
-            @click="activeForm = 'costs'"
+                class="rounded-2xl border px-2 py-3 text-xs font-bold"
+                :class="activeForm === 'votes'
+                    ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
+                    : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
+                @click="activeForm = 'votes'"
             >
-            Costs
+                Votes
             </button>
-            
             <button
-            class="rounded-2xl border px-2 py-3 text-xs font-bold"
-            :class="activeForm === 'settings'
-                ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
-                : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
-            @click="activeForm = 'settings'"
+                class="rounded-2xl border px-2 py-3 text-xs font-bold"
+                :class="activeForm === 'costs'
+                    ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
+                    : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
+                @click="activeForm = 'costs'"
             >
-            Settings
+                Costs
+            </button>
+            <button
+                class="rounded-2xl border px-2 py-3 text-xs font-bold"
+                :class="activeForm === 'settings'
+                    ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
+                    : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
+                @click="activeForm = 'settings'"
+            >
+                Settings
+            </button>
+            <button
+                class="rounded-2xl border px-4 py-3 text-sm font-bold"
+                :class="activeForm === 'activities'
+                    ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
+                    : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
+                @click="activeForm = 'activities'"
+            >
+                Activities
             </button>
         </section>
 
@@ -527,11 +631,11 @@ const deleteVoteImage = () => {
             </button>
             </form>
 
-            <div v-if="routeStore.stops.length" class="mt-6 space-y-3">
+            <div v-if="routeStore.activeTripStops.length" class="mt-6 space-y-3">
             <h4 class="font-bold">Current route stops</h4>
 
             <article
-                v-for="stop in routeStore.stops"
+                v-for="stop in routeStore.activeTripStops"
                 :key="stop.id"
                 class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950"
             >
@@ -623,7 +727,7 @@ const deleteVoteImage = () => {
             <select v-model="voteForm.routeStopId" class="input">
                 <option value="">Link to route stop optional</option>
                 <option
-                    v-for="stop in routeStore.stops"
+                    v-for="stop in routeStore.activeTripStops"
                     :key="stop.id"
                     :value="stop.id"
                 >
@@ -714,7 +818,7 @@ const deleteVoteImage = () => {
             <select v-model="costForm.routeStopId" class="input">
                 <option value="">Link to route stop optional</option>
                 <option
-                    v-for="stop in routeStore.stops"
+                    v-for="stop in routeStore.activeTripStops"
                     :key="stop.id"
                     :value="stop.id"
                 >
@@ -847,6 +951,107 @@ const deleteVoteImage = () => {
                 </button>
             </div>
         </section>
+
+        <section v-if="activeForm === 'activities'" class="card mt-5">
+            <h3 class="text-xl font-bold">
+                {{ editingActivityId ? 'Edit activity' : 'Add activity' }}
+            </h3>
+
+            <form class="mt-5 space-y-4" @submit.prevent="saveActivity">
+                <select v-model="activityForm.routeStopId" class="input">
+                <option value="">Select stop</option>
+                <option v-for="stop in routeStore.activeTripStops" :key="stop.id" :value="stop.id">
+                    {{ stop.city }}, {{ stop.country }}
+                </option>
+                </select>
+
+                <input v-model="activityForm.title" class="input" placeholder="Activity title" />
+
+                <select v-model="activityForm.category" class="input">
+                <option>Activity</option>
+                <option>Food</option>
+                <option>Tour</option>
+                <option>Beach</option>
+                <option>Walk</option>
+                <option>Transport</option>
+                <option>Other</option>
+                </select>
+
+                <textarea v-model="activityForm.description" class="input min-h-28" placeholder="Description"></textarea>
+
+                <label class="flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-300 p-6 text-center dark:border-slate-700">
+                <Upload class="mb-3 h-9 w-9 text-slate-400" />
+                <p class="font-bold">Upload activity image</p>
+                <input type="file" accept="image/*" class="hidden" @change="handleActivityImageUpload" />
+                </label>
+
+                <div v-if="activityForm.imageUrl" class="relative">
+                <img :src="activityForm.imageUrl" class="h-44 w-full rounded-3xl object-cover" />
+
+                <button
+                    type="button"
+                    class="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-lg font-bold text-slate-900 shadow-lg"
+                    @click="showDeleteActivityImageModal = true"
+                >
+                    ×
+                </button>
+                </div>
+
+                <input v-model="activityForm.link" class="input" placeholder="Website or booking link" />
+                <input v-model="activityForm.duration" class="input" placeholder="Duration, e.g. 2 hours" />
+
+                <div class="relative">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-500">£</span>
+                <input v-model="activityForm.cost" type="number" step="0.01" class="input pl-8" placeholder="Estimated cost" />
+                </div>
+
+                <select v-model="activityForm.bookingStatus" class="input">
+                <option value="not-booked">Not booked</option>
+                <option value="maybe">Maybe</option>
+                <option value="booked">Booked</option>
+                </select>
+
+                <button class="w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white dark:bg-cyan-400 dark:text-slate-950">
+                {{ editingActivityId ? 'Save activity' : 'Add activity' }}
+                </button>
+
+                <button
+                v-if="editingActivityId"
+                type="button"
+                class="w-full rounded-2xl bg-slate-100 px-5 py-3 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                @click="cancelEditingActivity"
+                >
+                Cancel edit
+                </button>
+            </form>
+
+            <div v-if="activitiesStore.activities.length" class="mt-6 space-y-3">
+                <h4 class="font-bold">Current activities</h4>
+
+                <article
+                v-for="activity in activitiesStore.activities"
+                :key="activity.id"
+                class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950"
+                >
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                    <p class="font-bold">{{ activity.title }}</p>
+                    <p class="muted text-sm">{{ activity.category }} · £{{ activity.cost || 0 }}</p>
+                    </div>
+
+                    <div class="flex gap-2">
+                    <button class="rounded-full bg-blue-100 px-3 py-2 text-xs font-bold text-blue-700" @click="startEditingActivity(activity)">
+                        Edit
+                    </button>
+
+                    <button class="rounded-full bg-red-100 px-3 py-2 text-xs font-bold text-red-700" @click="activitiesStore.deleteActivity(activity.id)">
+                        Delete
+                    </button>
+                    </div>
+                </div>
+                </article>
+            </div>
+        </section>
         </template>
         <Teleport to="body">
           <div
@@ -937,6 +1142,40 @@ const deleteVoteImage = () => {
                     @click="deleteVoteImage"
                     >
                     Delete
+                    </button>
+                </div>
+                </div>
+            </div>
+        </Teleport>
+        <Teleport to="body">
+            <div
+                v-if="showAdminMenu"
+                class="fixed inset-0 z-[10000] flex items-end bg-slate-950/60 backdrop-blur-sm"
+                @click.self="showAdminMenu = false"
+            >
+                <div class="w-full rounded-t-3xl bg-white p-5 text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-white">
+                <div class="mb-4 flex items-center justify-between">
+                    <h3 class="text-xl font-bold">Admin menu</h3>
+
+                    <button
+                    class="rounded-full bg-slate-100 px-3 py-2 text-sm font-bold dark:bg-slate-800"
+                    @click="showAdminMenu = false"
+                    >
+                    Close
+                    </button>
+                </div>
+
+                <div class="grid gap-3">
+                    <button
+                    v-for="item in adminMenuItems"
+                    :key="item.value"
+                    class="rounded-2xl border px-5 py-4 text-left font-bold"
+                    :class="activeForm === item.value
+                        ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
+                        : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200'"
+                    @click="selectAdminMenuItem(item.value)"
+                    >
+                    {{ item.label }}
                     </button>
                 </div>
                 </div>

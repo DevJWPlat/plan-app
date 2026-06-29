@@ -8,7 +8,7 @@ const navItems = [
   { label: 'Home', path: '/', icon: Home },
   { label: 'Map', path: '/map', icon: Map },
   { label: 'Route', path: '/route', icon: Route },
-  { label: 'Votes', path: '/votes', icon: Vote },
+  { label: 'Decisions', path: '/votes', icon: Vote },
   { label: 'Costs', path: '/pricing', icon: PoundSterling },
 ]
 </script>
