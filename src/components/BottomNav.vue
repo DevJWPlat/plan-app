@@ -15,7 +15,7 @@ const navItems = [
 
 <template>
   <nav
-    class="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
+    class="fixed bottom-0 left-0 right-0 z-[9999] border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_20px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:bg-slate-950"
   >
     <div class="mx-auto grid max-w-3xl grid-cols-5">
       <RouterLink

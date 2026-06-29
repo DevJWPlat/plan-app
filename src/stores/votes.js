@@ -21,6 +21,18 @@ export const useVotesStore = defineStore('votes', {
       this.saveVotes()
     },
 
+    updateVoteItem(id, updatedItem) {
+      const index = this.voteItems.findIndex((item) => item.id === id)
+      if (index === -1) return
+
+      this.voteItems[index] = {
+        ...this.voteItems[index],
+        ...updatedItem,
+      }
+
+      this.saveVotes()
+    },
+
     vote(itemId, userName, decision) {
       const item = this.voteItems.find((item) => item.id === itemId)
       if (!item) return
@@ -31,12 +43,6 @@ export const useVotesStore = defineStore('votes', {
         userName,
         decision,
       })
-
-      if (decision === 'decline') {
-        item.status = 'declined'
-      } else {
-        item.status = 'pending'
-      }
 
       this.saveVotes()
     },

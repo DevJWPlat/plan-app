@@ -70,18 +70,18 @@ onMounted(() => {
             Login
           </RouterLink>
 
-          <button
+          <RouterLink
             v-else
+            to="/admin"
             class="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors dark:bg-white dark:text-slate-950"
-            @click="logout"
-            >
-            Logout
-            </button>
+          >
+            Admin
+          </RouterLink>
         </div>
       </div>
     </header>
 
-    <main class="mx-auto max-w-3xl px-4 pb-28 pt-5">
+    <main class="mx-auto max-w-3xl px-4 pb-36 pt-5">
       <slot />
     </main>
 

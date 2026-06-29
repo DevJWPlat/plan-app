@@ -141,8 +141,34 @@ const resultStatus = (item) => {
                 {{ resultStatus(item).label }}
             </span>
         </div>
-        
+
         <p class="muted mt-2">{{ item.description }}</p>
+
+        <img
+            v-if="item.imageUrl"
+            :src="item.imageUrl"
+            :alt="item.title"
+            class="mt-4 h-44 w-full rounded-2xl object-cover"
+        />
+
+        <div v-if="item.cost || item.link" class="mt-4 flex flex-wrap gap-2">
+            <span
+                v-if="item.cost"
+                class="rounded-full bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            >
+                £{{ item.cost }}
+            </span>
+
+            <a
+                v-if="item.link"
+                :href="item.link"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="rounded-full bg-blue-100 px-3 py-2 text-sm font-bold text-blue-700 dark:bg-cyan-400/10 dark:text-cyan-300"
+            >
+                View link
+            </a>
+        </div>
 
         <div class="mt-4 grid grid-cols-2 gap-3">
           <button

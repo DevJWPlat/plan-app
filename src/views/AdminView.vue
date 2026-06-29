@@ -14,6 +14,7 @@ const pricingStore = usePricingStore()
 
 const activeForm = ref('route')
 const editingRouteId = ref(null)
+const editingVoteId = ref(null)
 
 const routeForm = ref({
   city: '',
@@ -30,6 +31,9 @@ const voteForm = ref({
   title: '',
   type: 'City',
   description: '',
+  link: '',
+  imageUrl: '',
+  cost: '',
 })
 
 const costForm = ref({
@@ -58,6 +62,9 @@ const resetVoteForm = () => {
     title: '',
     type: 'City',
     description: '',
+    link: '',
+    imageUrl: '',
+    cost: '',
   }
 }
 
@@ -105,10 +112,35 @@ const saveRouteStop = () => {
   resetRouteForm()
 }
 
-const addVoteItem = () => {
+const startEditingVote = (item) => {
+  activeForm.value = 'votes'
+  editingVoteId.value = item.id
+
+  voteForm.value = {
+    title: item.title || '',
+    type: item.type || 'City',
+    description: item.description || '',
+    link: item.link || '',
+    imageUrl: item.imageUrl || '',
+    cost: item.cost || '',
+  }
+}
+
+const cancelEditingVote = () => {
+  editingVoteId.value = null
+  resetVoteForm()
+}
+
+const saveVoteItem = () => {
   if (!voteForm.value.title || !voteForm.value.description) return
 
-  votesStore.addVoteItem(voteForm.value)
+  if (editingVoteId.value) {
+    votesStore.updateVoteItem(editingVoteId.value, voteForm.value)
+    editingVoteId.value = null
+  } else {
+    votesStore.addVoteItem(voteForm.value)
+  }
+
   resetVoteForm()
 }
 
@@ -139,6 +171,13 @@ const saveAvatar = () => {
 
   authStore.updateAvatar(selectedAvatar.value)
   selectedAvatar.value = null
+}
+
+const showLogoutModal = ref(false)
+
+const logout = () => {
+  authStore.logout()
+  showLogoutModal.value = false
 }
 </script>
 
@@ -266,25 +305,91 @@ const saveAvatar = () => {
         </section>
 
         <section v-if="activeForm === 'votes'" class="card mt-5">
-            <h3 class="text-xl font-bold">Add vote item</h3>
+          <h3 class="text-xl font-bold">
+            {{ editingVoteId ? 'Edit vote item' : 'Add vote item' }}
+          </h3>
 
-            <form class="mt-5 space-y-4" @submit.prevent="addVoteItem">
+          <form class="mt-5 space-y-4" @submit.prevent="saveVoteItem">
             <input v-model="voteForm.title" class="input" placeholder="Title, e.g. Add Kotor" />
 
             <select v-model="voteForm.type" class="input">
-                <option>City</option>
-                <option>Accommodation</option>
-                <option>Trip</option>
-                <option>Car</option>
-                <option>Other</option>
+              <option>City</option>
+              <option>Accommodation</option>
+              <option>Trip</option>
+              <option>Car</option>
+              <option>Other</option>
             </select>
 
             <textarea v-model="voteForm.description" class="input min-h-28" placeholder="Description"></textarea>
 
+            <input
+              v-model="voteForm.link"
+              class="input"
+              placeholder="Link, e.g. Airbnb or trip website"
+            />
+
+            <input
+              v-model="voteForm.imageUrl"
+              class="input"
+              placeholder="Image URL"
+            />
+
+            <div class="relative">
+              <input
+                v-model="voteForm.cost"
+                type="number"
+                step="0.01"
+                class="input pl-8"
+                placeholder="Estimated cost (£ added later)"
+              />
+            </div>
+
             <button class="w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white dark:bg-cyan-400 dark:text-slate-950">
-                Add vote item
+              {{ editingVoteId ? 'Save vote item' : 'Add vote item' }}
             </button>
-            </form>
+
+            <button
+              v-if="editingVoteId"
+              type="button"
+              class="w-full rounded-2xl bg-slate-100 px-5 py-3 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              @click="cancelEditingVote"
+            >
+              Cancel edit
+            </button>
+          </form>
+
+          <div v-if="votesStore.voteItems.length" class="mt-6 space-y-3">
+            <h4 class="font-bold">Current vote items</h4>
+
+            <article
+              v-for="item in votesStore.voteItems"
+              :key="item.id"
+              class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="font-bold">{{ item.title }}</p>
+                  <p class="muted text-sm">{{ item.type }}</p>
+                </div>
+
+                <div class="flex gap-2">
+                  <button
+                    class="rounded-full bg-blue-100 px-3 py-2 text-xs font-bold text-blue-700 dark:bg-cyan-400/10 dark:text-cyan-300"
+                    @click="startEditingVote(item)"
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    class="rounded-full bg-red-100 px-3 py-2 text-xs font-bold text-red-700 dark:bg-red-400/10 dark:text-red-300"
+                    @click="votesStore.deleteVoteItem(item.id)"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </article>
+          </div>
         </section>
 
         <section v-if="activeForm === 'costs'" class="card mt-5">
@@ -377,8 +482,45 @@ const saveAvatar = () => {
                     Save Profile Picture
                     </button>
                 </div>
+                <button
+                  type="button"
+                  class="mt-4 w-full rounded-2xl bg-red-100 px-5 py-3 font-bold text-red-700 dark:bg-red-400/10 dark:text-red-300"
+                  @click="showLogoutModal = true"
+                >
+                  Logout
+                </button>
             </div>
         </section>
         </template>
+        <Teleport to="body">
+          <div
+            v-if="showLogoutModal"
+            class="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+          >
+            <div class="w-full max-w-sm rounded-3xl bg-white p-6 text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-white">
+              <h3 class="text-2xl font-bold">Logout?</h3>
+
+              <p class="mt-3 text-slate-500 dark:text-slate-400">
+                Are you sure you want to logout? You won’t be able to vote while logged out.
+              </p>
+
+              <div class="mt-6 grid grid-cols-2 gap-3">
+                <button
+                  class="rounded-2xl bg-slate-100 px-4 py-3 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  @click="showLogoutModal = false"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  class="rounded-2xl bg-red-600 px-4 py-3 font-bold text-white"
+                  @click="logout"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </Teleport>
     </AppLayout>
 </template>
