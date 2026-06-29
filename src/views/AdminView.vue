@@ -294,6 +294,26 @@ const logout = () => {
   authStore.logout()
   showLogoutModal.value = false
 }
+
+const showDeleteVoteImageModal = ref(false)
+
+const handleVoteImageUpload = (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  const reader = new FileReader()
+
+  reader.onload = () => {
+    voteForm.value.imageUrl = reader.result
+  }
+
+  reader.readAsDataURL(file)
+}
+
+const deleteVoteImage = () => {
+  voteForm.value.imageUrl = ''
+  showDeleteVoteImageModal.value = false
+}
 </script>
 
 <template>
@@ -556,11 +576,40 @@ const logout = () => {
               placeholder="Link, e.g. Airbnb or trip website"
             />
 
-            <input
-              v-model="voteForm.imageUrl"
-              class="input"
-              placeholder="Image URL"
-            />
+            <label
+                class="flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-300 p-6 text-center transition hover:border-blue-500 dark:border-slate-700 dark:hover:border-cyan-400"
+                >
+                <Upload class="mb-3 h-9 w-9 text-slate-400" />
+
+                <p class="font-bold">Upload vote image</p>
+
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    Choose from your phone or computer
+                </p>
+
+                <input
+                    type="file"
+                    accept="image/*"
+                    class="hidden"
+                    @change="handleVoteImageUpload"
+                />
+                </label>
+
+                <div v-if="voteForm.imageUrl" class="relative">
+                <img
+                    :src="voteForm.imageUrl"
+                    alt="Vote item preview"
+                    class="h-44 w-full rounded-3xl object-cover"
+                />
+
+                <button
+                    type="button"
+                    class="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-lg font-bold text-slate-900 shadow-lg"
+                    @click="showDeleteVoteImageModal = true"
+                >
+                    ×
+                </button>
+            </div>
 
             <div class="relative">
               <input
@@ -854,6 +903,38 @@ const logout = () => {
                     type="button"
                     class="rounded-2xl bg-red-600 px-4 py-3 font-bold text-white"
                     @click="deleteRouteImage"
+                    >
+                    Delete
+                    </button>
+                </div>
+                </div>
+            </div>
+        </Teleport>
+        <Teleport to="body">
+            <div
+                v-if="showDeleteVoteImageModal"
+                class="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+            >
+                <div class="w-full max-w-sm rounded-3xl bg-white p-6 text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-white">
+                <h3 class="text-2xl font-bold">Delete image?</h3>
+
+                <p class="mt-3 text-slate-500 dark:text-slate-400">
+                    Are you sure you want to remove this vote image?
+                </p>
+
+                <div class="mt-6 grid grid-cols-2 gap-3">
+                    <button
+                    type="button"
+                    class="rounded-2xl bg-slate-100 px-4 py-3 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    @click="showDeleteVoteImageModal = false"
+                    >
+                    Cancel
+                    </button>
+
+                    <button
+                    type="button"
+                    class="rounded-2xl bg-red-600 px-4 py-3 font-bold text-white"
+                    @click="deleteVoteImage"
                     >
                     Delete
                     </button>
