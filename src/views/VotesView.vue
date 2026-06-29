@@ -8,11 +8,12 @@ const authStore = useAuthStore()
 const votesStore = useVotesStore()
 
 const activeTab = ref('votes')
-const resultFilter = ref('All')
+const activeFilter = ref('All')
 
 const filters = ['All', 'City', 'Accommodation', 'Trip', 'Car', 'Other']
 
 const getVote = (item, voterName) => {
+  if (!voterName) return null
   return item.votes.find((vote) => vote.userName === voterName)
 }
 
@@ -25,14 +26,16 @@ const declinedBy = (item) => {
 }
 
 const pendingVotes = computed(() => {
+  if (!authStore.isLoggedIn) return votesStore.voteItems
+
   return votesStore.voteItems.filter((item) => {
     return !getVote(item, authStore.user?.name)
   })
 })
 
 const filteredResults = computed(() => {
-  if (resultFilter.value === 'All') return votesStore.voteItems
-  return votesStore.voteItems.filter((item) => item.type === resultFilter.value)
+  if (activeFilter.value === 'All') return votesStore.voteItems
+  return votesStore.voteItems.filter((item) => item.type === activeFilter.value)
 })
 
 const resultCardClass = (item) => {
@@ -50,174 +53,212 @@ const resultCardClass = (item) => {
 }
 
 const initials = (name) => {
-  return name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase()
+  return name[0].toUpperCase()
+}
+
+const resultStatus = (item) => {
+  const noVotes = declinedBy(item).length
+  const yesVotes = approvedBy(item).length
+  const totalVotes = yesVotes + noVotes
+
+  if (totalVotes < authStore.voters.length) {
+    return {
+      label: `Waiting for ${authStore.voters.length - totalVotes} vote${authStore.voters.length - totalVotes === 1 ? '' : 's'}`,
+      class: 'bg-amber-100 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300',
+    }
+  }
+
+  if (noVotes >= 3) {
+    return {
+      label: 'Mostly declined',
+      class: 'bg-red-100 text-red-700 dark:bg-red-400/10 dark:text-red-300',
+    }
+  }
+
+  if (noVotes === 2) {
+    return {
+      label: 'Split decision',
+      class: 'bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-200',
+    }
+  }
+
+  return {
+    label: 'Approved',
+    class: 'bg-green-100 text-green-700 dark:bg-green-400/10 dark:text-green-300',
+  }
 }
 </script>
 
 <template>
-    <AppLayout>
-        <template v-if="!authStore.isLoggedIn">
-        <section class="card">
-            <h2 class="text-2xl font-bold">Login required</h2>
-            <p class="muted mt-2">
-            You need to login before you can view votes.
-            </p>
+  <AppLayout>
+    <h2 class="text-3xl font-bold">Votes</h2>
+    <p class="muted mt-3">
+      Vote on ideas, then check the results with everyone's choices visible.
+    </p>
 
-            <RouterLink
-            to="/login"
-            class="mt-5 inline-flex rounded-full bg-blue-600 px-5 py-3 font-bold text-white dark:bg-cyan-400 dark:text-slate-950"
+    <section class="mt-6 grid grid-cols-2 gap-3">
+      <button
+        class="rounded-2xl border px-4 py-3 font-bold"
+        :class="activeTab === 'votes'
+          ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
+          : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
+        @click="activeTab = 'votes'"
+      >
+        Votes
+        <span class="ml-1 rounded-full bg-white/20 px-2 py-1 text-xs">
+          {{ pendingVotes.length }}
+        </span>
+      </button>
+
+      <button
+        class="rounded-2xl border px-4 py-3 font-bold"
+        :class="activeTab === 'results'
+          ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
+          : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
+        @click="activeTab = 'results'"
+      >
+        Results
+      </button>
+    </section>
+
+    <section v-if="activeTab === 'votes'" class="mt-6 space-y-4">
+      <article
+        v-for="item in pendingVotes"
+        :key="item.id"
+        class="card relative overflow-hidden"
+      >
+        <p class="text-xs font-bold uppercase tracking-wide text-blue-600 dark:text-cyan-300">
+          {{ item.type }}
+        </p>
+
+        <div class="mt-1 flex items-start justify-between gap-3">
+            <h3 class="text-xl font-bold">{{ item.title }}</h3>
+
+            <span
+                class="shrink-0 rounded-full px-3 py-1 text-xs font-bold"
+                :class="resultStatus(item).class"
             >
-            Login
-            </RouterLink>
-        </section>
-        </template>
-
-        <template v-else>
-        <h2 class="text-3xl font-bold">Votes</h2>
-
-        <div class="mt-5 grid grid-cols-2 gap-3">
-            <button
-            class="rounded-2xl border px-4 py-3 font-bold"
-            :class="activeTab === 'votes'
-                ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
-                : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
-            @click="activeTab = 'votes'"
-            >
-            Votes
-            <span class="ml-1 rounded-full bg-white/20 px-2 py-1 text-xs">
-                {{ pendingVotes.length }}
+                {{ resultStatus(item).label }}
             </span>
-            </button>
+        </div>
+        
+        <p class="muted mt-2">{{ item.description }}</p>
 
-            <button
-            class="rounded-2xl border px-4 py-3 font-bold"
-            :class="activeTab === 'results'
-                ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
-                : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
-            @click="activeTab = 'results'"
-            >
-            Results
-            </button>
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          <button
+            class="rounded-xl bg-green-100 px-4 py-3 font-bold text-green-700 transition active:scale-95 dark:bg-green-400/10 dark:text-green-300"
+            :disabled="!authStore.isAdmin"
+            @click="votesStore.vote(item.id, authStore.user.name, 'approve')"
+          >
+            Yes
+          </button>
+
+          <button
+            class="rounded-xl bg-red-100 px-4 py-3 font-bold text-red-700 transition active:scale-95 dark:bg-red-400/10 dark:text-red-300"
+            :disabled="!authStore.isAdmin"
+            @click="votesStore.vote(item.id, authStore.user.name, 'decline')"
+          >
+            No
+          </button>
         </div>
 
-        <section v-if="activeTab === 'votes'" class="mt-6 space-y-4">
-            <article
-            v-for="item in votesStore.voteItems"
-            :key="item.id"
-            class="card"
-            >
-            <p class="text-xs font-bold uppercase text-blue-600 dark:text-cyan-300">
-                {{ item.type }}
-            </p>
+        <div
+          v-if="!authStore.isAdmin"
+          class="absolute inset-0 flex flex-col items-center justify-center bg-white/80 px-6 py-10 text-center backdrop-blur-sm dark:bg-slate-900/80"
+        >
+          <p class="text-2xl">🔒</p>
+          <h4 class="mt-0 text-lg font-bold">Login to vote</h4>
+          <p class="muted mt-1 text-[10px]">
+            There are votes waiting. Login with your account to complete them.
+          </p>
 
-            <h3 class="mt-1 text-xl font-bold">
-                {{ item.title }}
-            </h3>
+          <RouterLink
+            to="/login"
+            class="w-full rounded-full bg-blue-600 px-5 py-1 mt-2 text-sm font-bold text-white dark:bg-cyan-400 dark:text-slate-950"
+          >
+            Login
+          </RouterLink>
+        </div>
+      </article>
 
-            <p class="muted mt-2">
-                {{ item.description }}
-            </p>
+      <section v-if="pendingVotes.length === 0" class="card">
+        <h3 class="text-xl font-bold">No votes to complete</h3>
+        <p class="muted mt-2">You’re all caught up.</p>
+      </section>
+    </section>
 
-            <div v-if="authStore.isAdmin" class="mt-4 grid grid-cols-2 gap-3">
-                <button
-                class="rounded-xl bg-green-100 px-4 py-3 font-bold text-green-700 dark:bg-green-400/10 dark:text-green-300"
-                @click="votesStore.vote(item.id, authStore.user.name, 'approve')"
-                >
-                Yes
-                </button>
+    <section v-if="activeTab === 'results'" class="mt-6">
+      <div class="flex gap-2 overflow-x-auto pb-2">
+        <button
+          v-for="filter in filters"
+          :key="filter"
+          class="shrink-0 rounded-full border px-4 py-2 text-sm font-bold"
+          :class="activeFilter === filter
+            ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
+            : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
+          @click="activeFilter = filter"
+        >
+          {{ filter }}
+        </button>
+      </div>
 
-                <button
-                class="rounded-xl bg-red-100 px-4 py-3 font-bold text-red-700 dark:bg-red-400/10 dark:text-red-300"
-                @click="votesStore.vote(item.id, authStore.user.name, 'decline')"
-                >
-                No
-                </button>
+      <div class="mt-4 space-y-4">
+        <article
+          v-for="item in filteredResults"
+          :key="item.id"
+          class="rounded-3xl border p-5 shadow-sm"
+          :class="resultCardClass(item)"
+        >
+          <p class="text-xs font-bold uppercase tracking-wide text-blue-600 dark:text-cyan-300">
+            {{ item.type }}
+          </p>
+
+          <h3 class="mt-1 text-xl font-bold">{{ item.title }}</h3>
+          <p class="muted mt-2">{{ item.description }}</p>
+
+          <div class="mt-5">
+            <p class="text-sm font-bold">Approved by</p>
+
+            <div class="mt-2 flex gap-2">
+              <div
+                v-for="voter in approvedBy(item)"
+                :key="voter.name"
+                class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-green-600 text-sm font-bold text-white"
+                :title="voter.name"
+              >
+                <img
+                  v-if="voter.avatarUrl"
+                  :src="voter.avatarUrl"
+                  :alt="voter.name"
+                  class="h-full w-full object-cover"
+                />
+                <span v-else>{{ initials(voter.name) }}</span>
+              </div>
             </div>
-            </article>
-        </section>
+          </div>
 
-        <section v-if="activeTab === 'results'" class="mt-6">
-            <div class="flex gap-2 overflow-x-auto pb-2">
-            <button
-                v-for="filter in filters"
-                :key="filter"
-                class="shrink-0 rounded-full border px-4 py-2 text-sm font-bold"
-                :class="resultFilter === filter
-                ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
-                : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
-                @click="resultFilter = filter"
-            >
-                {{ filter }}
-            </button>
+          <div class="mt-5">
+            <p class="text-sm font-bold">Declined by</p>
+
+            <div class="mt-2 flex gap-2">
+              <div
+                v-for="voter in declinedBy(item)"
+                :key="voter.name"
+                class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-red-600 text-sm font-bold text-white"
+                :title="voter.name"
+              >
+                <img
+                  v-if="voter.avatarUrl"
+                  :src="voter.avatarUrl"
+                  :alt="voter.name"
+                  class="h-full w-full object-cover"
+                />
+                <span v-else>{{ initials(voter.name) }}</span>
+              </div>
             </div>
-
-            <div class="mt-4 space-y-4">
-            <article
-                v-for="item in filteredResults"
-                :key="item.id"
-                class="rounded-3xl border p-5 shadow-sm"
-                :class="resultCardClass(item)"
-            >
-                <p class="text-xs font-bold uppercase text-blue-600 dark:text-cyan-300">
-                {{ item.type }}
-                </p>
-
-                <h3 class="mt-1 text-xl font-bold">
-                {{ item.title }}
-                </h3>
-
-                <p class="muted mt-2">
-                {{ item.description }}
-                </p>
-
-                <div class="mt-5">
-                <p class="text-sm font-bold">Approved by</p>
-
-                <div class="mt-2 flex gap-2">
-                    <div
-                    v-for="voter in approvedBy(item)"
-                    :key="voter.name"
-                    class="flex h-10 w-10 items-center justify-center rounded-full bg-green-600 text-sm font-bold text-white"
-                    :title="voter.name"
-                    >
-                    <img
-                        v-if="voter.avatarUrl"
-                        :src="voter.avatarUrl"
-                        :alt="voter.name"
-                        class="h-full w-full rounded-full object-cover"
-                    />
-                    <span v-else>{{ initials(voter.name) }}</span>
-                    </div>
-                </div>
-                </div>
-
-                <div class="mt-5">
-                <p class="text-sm font-bold">Declined by</p>
-
-                <div class="mt-2 flex gap-2">
-                    <div
-                    v-for="voter in declinedBy(item)"
-                    :key="voter.name"
-                    class="flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white"
-                    :title="voter.name"
-                    >
-                    <img
-                        v-if="voter.avatarUrl"
-                        :src="voter.avatarUrl"
-                        :alt="voter.name"
-                        class="h-full w-full rounded-full object-cover"
-                    />
-                    <span v-else>{{ initials(voter.name) }}</span>
-                    </div>
-                </div>
-                </div>
-            </article>
-            </div>
-        </section>
-        </template>
-    </AppLayout>
+          </div>
+        </article>
+      </div>
+    </section>
+  </AppLayout>
 </template>
