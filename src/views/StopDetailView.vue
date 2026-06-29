@@ -29,6 +29,10 @@ const stopCostTotal = computed(() => {
     return total + Number(cost.amount || 0)
   }, 0)
 })
+
+const thingsToDo = computed(() => {
+  return relatedVotes.value.filter((item) => item.type === 'Trip')
+})
 </script>
 
 <template>
@@ -120,6 +124,44 @@ const stopCostTotal = computed(() => {
         <section class="card mt-5">
             <h3 class="text-xl font-bold">Notes</h3>
             <p class="muted mt-2">{{ stop.notes || 'No notes added yet.' }}</p>
+        </section>
+
+        <section class="card mt-5">
+            <h3 class="text-xl font-bold">Things to do</h3>
+
+            <div v-if="thingsToDo.length" class="mt-4 space-y-3">
+                <article
+                v-for="item in thingsToDo"
+                :key="item.id"
+                class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950"
+                >
+                <h4 class="font-bold">{{ item.title }}</h4>
+                <p class="muted mt-1 text-sm">{{ item.description }}</p>
+
+                <div v-if="item.cost || item.link" class="mt-3 flex flex-wrap gap-2">
+                    <span
+                    v-if="item.cost"
+                    class="rounded-full bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    >
+                    £{{ item.cost }}
+                    </span>
+
+                    <a
+                    v-if="item.link"
+                    :href="item.link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="rounded-full bg-blue-100 px-3 py-2 text-sm font-bold text-blue-700 dark:bg-cyan-400/10 dark:text-cyan-300"
+                    >
+                    View link
+                    </a>
+                </div>
+                </article>
+            </div>
+
+            <p v-else class="muted mt-2">
+                No trips linked to this stop yet.
+            </p>
         </section>
 
         <section class="card mt-5">
