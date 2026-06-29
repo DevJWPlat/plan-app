@@ -6,18 +6,38 @@ export const useRouteStore = defineStore('route', {
   }),
 
   actions: {
+    saveStops() {
+      localStorage.setItem('plan-app-route-stops', JSON.stringify(this.stops))
+    },
+
     addStop(stop) {
       this.stops.push({
         id: Date.now(),
         ...stop,
+        lat: Number(stop.lat),
+        lng: Number(stop.lng),
       })
 
-      localStorage.setItem('plan-app-route-stops', JSON.stringify(this.stops))
+      this.saveStops()
+    },
+
+    updateStop(id, updatedStop) {
+      const index = this.stops.findIndex((stop) => stop.id === id)
+      if (index === -1) return
+
+      this.stops[index] = {
+        ...this.stops[index],
+        ...updatedStop,
+        lat: Number(updatedStop.lat),
+        lng: Number(updatedStop.lng),
+      }
+
+      this.saveStops()
     },
 
     deleteStop(id) {
       this.stops = this.stops.filter((stop) => stop.id !== id)
-      localStorage.setItem('plan-app-route-stops', JSON.stringify(this.stops))
+      this.saveStops()
     },
   },
 })

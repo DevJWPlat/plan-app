@@ -1,4 +1,5 @@
 <script setup>
+import { computed, ref } from 'vue'
 import AppLayout from '../layouts/AppLayout.vue'
 import { useAuthStore } from '../stores/auth'
 import { useVotesStore } from '../stores/votes'
@@ -6,124 +7,217 @@ import { useVotesStore } from '../stores/votes'
 const authStore = useAuthStore()
 const votesStore = useVotesStore()
 
-const hasUserVoted = (item) => {
-  return item.votes.some((vote) => vote.userName === authStore.user.name)
+const activeTab = ref('votes')
+const resultFilter = ref('All')
+
+const filters = ['All', 'City', 'Accommodation', 'Trip', 'Car', 'Other']
+
+const getVote = (item, voterName) => {
+  return item.votes.find((vote) => vote.userName === voterName)
 }
 
-const userVote = (item) => {
-  return item.votes.find((vote) => vote.userName === authStore.user.name)?.decision
+const approvedBy = (item) => {
+  return authStore.voters.filter((voter) => getVote(item, voter.name)?.decision === 'approve')
+}
+
+const declinedBy = (item) => {
+  return authStore.voters.filter((voter) => getVote(item, voter.name)?.decision === 'decline')
+}
+
+const pendingVotes = computed(() => {
+  return votesStore.voteItems.filter((item) => {
+    return !getVote(item, authStore.user?.name)
+  })
+})
+
+const filteredResults = computed(() => {
+  if (resultFilter.value === 'All') return votesStore.voteItems
+  return votesStore.voteItems.filter((item) => item.type === resultFilter.value)
+})
+
+const resultCardClass = (item) => {
+  const noVotes = declinedBy(item).length
+
+  if (noVotes >= 3) {
+    return 'border-red-200 bg-red-50 dark:border-red-400/20 dark:bg-red-400/10'
+  }
+
+  if (noVotes <= 1) {
+    return 'border-green-200 bg-green-50 dark:border-green-400/20 dark:bg-green-400/10'
+  }
+
+  return 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
+}
+
+const initials = (name) => {
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
 }
 </script>
 
 <template>
-  <AppLayout>
-    <template v-if="!authStore.isLoggedIn">
-      <section class="card">
-        <h2 class="text-2xl font-bold">Login required</h2>
-        <p class="muted mt-2">
-          You need to login before you can view or vote on trip decisions.
-        </p>
+    <AppLayout>
+        <template v-if="!authStore.isLoggedIn">
+        <section class="card">
+            <h2 class="text-2xl font-bold">Login required</h2>
+            <p class="muted mt-2">
+            You need to login before you can view votes.
+            </p>
 
-        <RouterLink
-          to="/login"
-          class="mt-5 inline-flex rounded-full bg-blue-600 px-5 py-3 font-bold text-white dark:bg-cyan-400 dark:text-slate-950"
-        >
-          Login
-        </RouterLink>
-      </section>
-    </template>
+            <RouterLink
+            to="/login"
+            class="mt-5 inline-flex rounded-full bg-blue-600 px-5 py-3 font-bold text-white dark:bg-cyan-400 dark:text-slate-950"
+            >
+            Login
+            </RouterLink>
+        </section>
+        </template>
 
-    <template v-else>
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <h2 class="text-3xl font-bold">Votes</h2>
-          <p class="muted mt-2">
-            Vote on cities, accommodation, trips and route changes.
-          </p>
+        <template v-else>
+        <h2 class="text-3xl font-bold">Votes</h2>
+
+        <div class="mt-5 grid grid-cols-2 gap-3">
+            <button
+            class="rounded-2xl border px-4 py-3 font-bold"
+            :class="activeTab === 'votes'
+                ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
+                : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
+            @click="activeTab = 'votes'"
+            >
+            Votes
+            <span class="ml-1 rounded-full bg-white/20 px-2 py-1 text-xs">
+                {{ pendingVotes.length }}
+            </span>
+            </button>
+
+            <button
+            class="rounded-2xl border px-4 py-3 font-bold"
+            :class="activeTab === 'results'
+                ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
+                : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
+            @click="activeTab = 'results'"
+            >
+            Results
+            </button>
         </div>
 
-        <RouterLink
-          v-if="authStore.isAdmin"
-          to="/admin"
-          class="rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white dark:bg-cyan-400 dark:text-slate-950"
-        >
-          Add
-        </RouterLink>
-      </div>
-
-      <div class="mt-5 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-400/10 dark:text-amber-200">
-        Votes are anonymous. If one person votes no, the item will be declined.
-      </div>
-
-      <section v-if="votesStore.voteItems.length === 0" class="card mt-6">
-        <h3 class="text-xl font-bold">No votes yet</h3>
-        <p class="muted mt-2">
-          Add your first vote item from the admin page.
-        </p>
-      </section>
-
-      <section v-else class="mt-6 space-y-4">
-        <article
-          v-for="item in votesStore.voteItems"
-          :key="item.id"
-          class="card"
-        >
-          <div class="flex items-start justify-between gap-4">
-            <div>
-              <p class="text-xs font-bold uppercase text-blue-600 dark:text-cyan-300">
+        <section v-if="activeTab === 'votes'" class="mt-6 space-y-4">
+            <article
+            v-for="item in votesStore.voteItems"
+            :key="item.id"
+            class="card"
+            >
+            <p class="text-xs font-bold uppercase text-blue-600 dark:text-cyan-300">
                 {{ item.type }}
-              </p>
+            </p>
 
-              <h3 class="mt-1 text-xl font-bold">
+            <h3 class="mt-1 text-xl font-bold">
                 {{ item.title }}
-              </h3>
+            </h3>
+
+            <p class="muted mt-2">
+                {{ item.description }}
+            </p>
+
+            <div v-if="authStore.isAdmin" class="mt-4 grid grid-cols-2 gap-3">
+                <button
+                class="rounded-xl bg-green-100 px-4 py-3 font-bold text-green-700 dark:bg-green-400/10 dark:text-green-300"
+                @click="votesStore.vote(item.id, authStore.user.name, 'approve')"
+                >
+                Yes
+                </button>
+
+                <button
+                class="rounded-xl bg-red-100 px-4 py-3 font-bold text-red-700 dark:bg-red-400/10 dark:text-red-300"
+                @click="votesStore.vote(item.id, authStore.user.name, 'decline')"
+                >
+                No
+                </button>
+            </div>
+            </article>
+        </section>
+
+        <section v-if="activeTab === 'results'" class="mt-6">
+            <div class="flex gap-2 overflow-x-auto pb-2">
+            <button
+                v-for="filter in filters"
+                :key="filter"
+                class="shrink-0 rounded-full border px-4 py-2 text-sm font-bold"
+                :class="resultFilter === filter
+                ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
+                : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
+                @click="resultFilter = filter"
+            >
+                {{ filter }}
+            </button>
             </div>
 
-            <span
-              class="rounded-full px-3 py-1 text-xs font-bold"
-              :class="
-                item.status === 'declined'
-                  ? 'bg-red-100 text-red-700 dark:bg-red-400/10 dark:text-red-300'
-                  : 'bg-amber-100 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300'
-              "
+            <div class="mt-4 space-y-4">
+            <article
+                v-for="item in filteredResults"
+                :key="item.id"
+                class="rounded-3xl border p-5 shadow-sm"
+                :class="resultCardClass(item)"
             >
-              {{ item.status }}
-            </span>
-          </div>
+                <p class="text-xs font-bold uppercase text-blue-600 dark:text-cyan-300">
+                {{ item.type }}
+                </p>
 
-          <p class="muted mt-3">
-            {{ item.description }}
-          </p>
+                <h3 class="mt-1 text-xl font-bold">
+                {{ item.title }}
+                </h3>
 
-          <p v-if="hasUserVoted(item)" class="mt-4 text-sm font-bold text-blue-600 dark:text-cyan-300">
-            You voted: {{ userVote(item) }}
-          </p>
+                <p class="muted mt-2">
+                {{ item.description }}
+                </p>
 
-          <div class="mt-4 grid grid-cols-2 gap-3">
-            <button
-              class="rounded-xl bg-green-100 px-4 py-3 font-bold text-green-700 transition active:scale-95 dark:bg-green-400/10 dark:text-green-300"
-              @click="votesStore.vote(item.id, authStore.user.name, 'approve')"
-            >
-              Approve
-            </button>
+                <div class="mt-5">
+                <p class="text-sm font-bold">Approved by</p>
 
-            <button
-              class="rounded-xl bg-red-100 px-4 py-3 font-bold text-red-700 transition active:scale-95 dark:bg-red-400/10 dark:text-red-300"
-              @click="votesStore.vote(item.id, authStore.user.name, 'decline')"
-            >
-              Decline
-            </button>
-          </div>
+                <div class="mt-2 flex gap-2">
+                    <div
+                    v-for="voter in approvedBy(item)"
+                    :key="voter.name"
+                    class="flex h-10 w-10 items-center justify-center rounded-full bg-green-600 text-sm font-bold text-white"
+                    :title="voter.name"
+                    >
+                    <img
+                        v-if="voter.avatarUrl"
+                        :src="voter.avatarUrl"
+                        :alt="voter.name"
+                        class="h-full w-full rounded-full object-cover"
+                    />
+                    <span v-else>{{ initials(voter.name) }}</span>
+                    </div>
+                </div>
+                </div>
 
-          <button
-            v-if="authStore.isAdmin"
-            class="mt-4 rounded-full bg-red-100 px-3 py-2 text-xs font-bold text-red-700 dark:bg-red-400/10 dark:text-red-300"
-            @click="votesStore.deleteVoteItem(item.id)"
-          >
-            Delete vote item
-          </button>
-        </article>
-      </section>
-    </template>
-  </AppLayout>
+                <div class="mt-5">
+                <p class="text-sm font-bold">Declined by</p>
+
+                <div class="mt-2 flex gap-2">
+                    <div
+                    v-for="voter in declinedBy(item)"
+                    :key="voter.name"
+                    class="flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white"
+                    :title="voter.name"
+                    >
+                    <img
+                        v-if="voter.avatarUrl"
+                        :src="voter.avatarUrl"
+                        :alt="voter.name"
+                        class="h-full w-full rounded-full object-cover"
+                    />
+                    <span v-else>{{ initials(voter.name) }}</span>
+                    </div>
+                </div>
+                </div>
+            </article>
+            </div>
+        </section>
+        </template>
+    </AppLayout>
 </template>

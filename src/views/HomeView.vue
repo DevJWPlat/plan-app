@@ -1,8 +1,30 @@
 <script setup>
+import { computed } from 'vue'
 import AppLayout from '../layouts/AppLayout.vue'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
+
+const flightDate = new Date('2027-07-01T08:00:00')
+
+const countdown = computed(() => {
+  const now = new Date()
+  const diff = flightDate - now
+
+  if (diff <= 0) {
+    return {
+      days: 0,
+      hours: 0,
+      minutes: 0,
+    }
+  }
+
+  return {
+    days: Math.floor(diff / 1000 / 60 / 60 / 24),
+    hours: Math.floor((diff / 1000 / 60 / 60) % 24),
+    minutes: Math.floor((diff / 1000 / 60) % 60),
+  }
+})
 </script>
 
 <template>
@@ -13,6 +35,43 @@ const authStore = useAuthStore()
         <p class="mt-3 text-sm leading-6 opacity-90">
             Plan the route, vote on stops, compare costs and keep everything in one place.
         </p>
+        </section>
+
+        <section class="card mt-5">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                <p class="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-cyan-300">
+                    Flight countdown
+                </p>
+
+                <h3 class="mt-1 text-2xl font-bold">
+                    Not long now
+                </h3>
+
+                <p class="muted mt-2">
+                    Countdown to the flight.
+                </p>
+                </div>
+
+                <div class="text-3xl">✈️</div>
+            </div>
+
+            <div class="mt-5 grid grid-cols-3 gap-3">
+                <div class="rounded-2xl bg-slate-50 p-4 text-center dark:bg-slate-950">
+                <p class="text-3xl font-bold">{{ countdown.days }}</p>
+                <p class="muted mt-1 text-xs font-semibold">Days</p>
+                </div>
+
+                <div class="rounded-2xl bg-slate-50 p-4 text-center dark:bg-slate-950">
+                <p class="text-3xl font-bold">{{ countdown.hours }}</p>
+                <p class="muted mt-1 text-xs font-semibold">Hours</p>
+                </div>
+
+                <div class="rounded-2xl bg-slate-50 p-4 text-center dark:bg-slate-950">
+                <p class="text-3xl font-bold">{{ countdown.minutes }}</p>
+                <p class="muted mt-1 text-xs font-semibold">Mins</p>
+                </div>
+            </div>
         </section>
 
         <section
