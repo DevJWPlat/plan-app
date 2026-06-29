@@ -13,28 +13,41 @@ const votesStore = useVotesStore()
 const pricingStore = usePricingStore()
 
 const activeForm = ref('route')
+
 const editingRouteId = ref(null)
 const editingVoteId = ref(null)
 const editingCostId = ref(null)
 
+const routeErrors = ref({})
+const isSearchingPlaces = ref(false)
+const placeSearch = ref('')
+const placeResults = ref([])
+
+const selectedAvatar = ref(null)
+const showLogoutModal = ref(false)
+
 const routeForm = ref({
-  city: '',
-  country: '',
-  dates: '',
-  driveTime: '',
-  accommodation: '',
-  notes: '',
-  lat: '',
-  lng: '',
+    city: '',
+    country: '',
+    dates: '',
+    driveTime: '',
+    accommodation: '',
+    notes: '',
+    lat: '',
+    lng: '',
+    imageUrl: '',
+    accommodationLink: '',
+    mapsLink: '',
 })
 
 const voteForm = ref({
-  title: '',
-  type: 'City',
-  description: '',
-  link: '',
-  imageUrl: '',
-  cost: '',
+    title: '',
+    type: 'City',
+    description: '',
+    link: '',
+    imageUrl: '',
+    cost: '',
+    routeStopId: '',
 })
 
 const costForm = ref({
@@ -43,6 +56,7 @@ const costForm = ref({
   country: '',
   amount: '',
   notes: '',
+  routeStopId: '',
 })
 
 const resetRouteForm = () => {
@@ -66,6 +80,7 @@ const resetVoteForm = () => {
     link: '',
     imageUrl: '',
     cost: '',
+    routeStopId: '',
   }
 }
 
@@ -76,7 +91,51 @@ const resetCostForm = () => {
     country: '',
     amount: '',
     notes: '',
+    routeStopId: '',
   }
+}
+
+const validateRouteForm = () => {
+  routeErrors.value = {}
+
+  if (!routeForm.value.city) routeErrors.value.city = 'City is required'
+  if (!routeForm.value.country) routeErrors.value.country = 'Country is required'
+  if (!routeForm.value.lat) routeErrors.value.lat = 'Latitude is required'
+  if (!routeForm.value.lng) routeErrors.value.lng = 'Longitude is required'
+
+  return Object.keys(routeErrors.value).length === 0
+}
+
+const searchPlaces = async () => {
+  if (!placeSearch.value.trim()) return
+
+  isSearchingPlaces.value = true
+
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(placeSearch.value)}&limit=5`
+    )
+
+    placeResults.value = await response.json()
+  } catch (error) {
+    console.error('Place search failed:', error)
+    placeResults.value = []
+  } finally {
+    isSearchingPlaces.value = false
+  }
+}
+
+const selectPlace = (place) => {
+  const parts = place.display_name.split(',')
+
+  routeForm.value.city = routeForm.value.city || parts[0]?.trim()
+  routeForm.value.country = routeForm.value.country || parts[parts.length - 1]?.trim()
+  routeForm.value.lat = place.lat
+  routeForm.value.lng = place.lon
+
+  placeSearch.value = place.display_name
+  placeResults.value = []
+  routeErrors.value = {}
 }
 
 const startEditingRoute = (stop) => {
@@ -92,16 +151,26 @@ const startEditingRoute = (stop) => {
     notes: stop.notes || '',
     lat: stop.lat || '',
     lng: stop.lng || '',
+    imageUrl: stop.imageUrl || '',
+    accommodationLink: stop.accommodationLink || '',
+    mapsLink: stop.mapsLink || '',
   }
+
+  placeSearch.value = ''
+  placeResults.value = []
+  routeErrors.value = {}
 }
 
 const cancelEditingRoute = () => {
   editingRouteId.value = null
   resetRouteForm()
+  routeErrors.value = {}
+  placeSearch.value = ''
+  placeResults.value = []
 }
 
 const saveRouteStop = () => {
-  if (!routeForm.value.city || !routeForm.value.country) return
+  if (!validateRouteForm()) return
 
   if (editingRouteId.value) {
     routeStore.updateStop(editingRouteId.value, routeForm.value)
@@ -111,6 +180,29 @@ const saveRouteStop = () => {
   }
 
   resetRouteForm()
+  routeErrors.value = {}
+  placeSearch.value = ''
+  placeResults.value = []
+}
+
+const handleRouteImageUpload = (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  const reader = new FileReader()
+
+  reader.onload = () => {
+    routeForm.value.imageUrl = reader.result
+  }
+
+  reader.readAsDataURL(file)
+}
+
+const showDeleteRouteImageModal = ref(false)
+
+const deleteRouteImage = () => {
+  routeForm.value.imageUrl = ''
+  showDeleteRouteImageModal.value = false
 }
 
 const startEditingVote = (item) => {
@@ -124,6 +216,7 @@ const startEditingVote = (item) => {
     link: item.link || '',
     imageUrl: item.imageUrl || '',
     cost: item.cost || '',
+    routeStopId: item.routeStopId || '',
   }
 }
 
@@ -145,6 +238,25 @@ const saveVoteItem = () => {
   resetVoteForm()
 }
 
+const startEditingCost = (cost) => {
+  activeForm.value = 'costs'
+  editingCostId.value = cost.id
+
+  costForm.value = {
+    title: cost.title || '',
+    category: cost.category || 'Accommodation',
+    country: cost.country || '',
+    amount: cost.amount || '',
+    notes: cost.notes || '',
+    routeStopId: cost.routeStopId || '',
+  }
+}
+
+const cancelEditingCost = () => {
+  editingCostId.value = null
+  resetCostForm()
+}
+
 const saveCost = () => {
   if (!costForm.value.title || !costForm.value.amount) return
 
@@ -157,26 +269,6 @@ const saveCost = () => {
 
   resetCostForm()
 }
-
-const startEditingCost = (cost) => {
-  activeForm.value = 'costs'
-  editingCostId.value = cost.id
-
-  costForm.value = {
-    title: cost.title || '',
-    category: cost.category || 'Accommodation',
-    country: cost.country || '',
-    amount: cost.amount || '',
-    notes: cost.notes || '',
-  }
-}
-
-const cancelEditingCost = () => {
-  editingCostId.value = null
-  resetCostForm()
-}
-
-const selectedAvatar = ref(null)
 
 const handleAvatarUpload = (event) => {
   const file = event.target.files?.[0]
@@ -197,8 +289,6 @@ const saveAvatar = () => {
   authStore.updateAvatar(selectedAvatar.value)
   selectedAvatar.value = null
 }
-
-const showLogoutModal = ref(false)
 
 const logout = () => {
   authStore.logout()
@@ -281,14 +371,127 @@ const logout = () => {
             </h3>
 
             <form class="mt-5 space-y-4" @submit.prevent="saveRouteStop">
-            <input v-model="routeForm.city" class="input" placeholder="City, e.g. Kotor" />
-            <input v-model="routeForm.country" class="input" placeholder="Country, e.g. Montenegro" />
-            <input v-model="routeForm.dates" class="input" placeholder="Dates, e.g. 12-14 July" />
-            <input v-model="routeForm.driveTime" class="input" placeholder="Drive time, e.g. 2h 30m" />
-            <input v-model="routeForm.accommodation" class="input" placeholder="Accommodation name/link" />
-            <input v-model="routeForm.lat" type="number" step="any" class="input" placeholder="Latitude, e.g. 42.4247" />
-            <input v-model="routeForm.lng" type="number" step="any" class="input" placeholder="Longitude, e.g. 18.7712" />
+              <input
+                v-model="routeForm.city"
+                class="input"
+                :class="routeErrors.city ? 'border-red-500 focus:border-red-500' : ''"
+                placeholder="City, e.g. Kotor"
+              />
+
+              <input
+                v-model="routeForm.country"
+                class="input"
+                :class="routeErrors.country ? 'border-red-500 focus:border-red-500' : ''"
+                placeholder="Country, e.g. Montenegro"
+              />
+              <input v-model="routeForm.dates" class="input" placeholder="Dates, e.g. 12-14 July" />
+              <input v-model="routeForm.driveTime" class="input" placeholder="Drive time, e.g. 2h 30m" />
+              <input v-model="routeForm.accommodation" class="input" placeholder="Accommodation name/link" />
+              <label
+                class="flex cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-300 p-6 text-center transition hover:border-blue-500 dark:border-slate-700 dark:hover:border-cyan-400"
+                >
+                <Upload class="mb-3 h-9 w-9 text-slate-400" />
+
+                <p class="font-bold">Upload stop image</p>
+
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    Choose from your phone or computer
+                </p>
+
+                <input
+                    type="file"
+                    accept="image/*"
+                    class="hidden"
+                    @change="handleRouteImageUpload"
+                />
+                </label>
+
+                <div v-if="routeForm.imageUrl" class="relative">
+                    <img
+                        :src="routeForm.imageUrl"
+                        alt="Route stop preview"
+                        class="h-44 w-full rounded-3xl object-cover"
+                    />
+
+                    <button
+                        type="button"
+                        class="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-lg font-bold text-slate-900 shadow-lg cursor-pointer"
+                        @click="showDeleteRouteImageModal = true"
+                    >
+                        ×
+                    </button>
+                </div>
+
+                <input
+                v-model="routeForm.accommodationLink"
+                class="input"
+                placeholder="Accommodation link"
+                />
+
+                <input
+                v-model="routeForm.mapsLink"
+                class="input"
+                placeholder="Google Maps link"
+                />
+              <div class="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                <label class="text-sm font-bold">Search location</label>
+
+                <div class="mt-2 flex flex-col gap-2">
+                  <input
+                    v-model="placeSearch"
+                    class="input"
+                    placeholder="Search city, hotel or place"
+                  />
+
+                  <button
+                    type="button"
+                    class="rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white dark:bg-cyan-400 dark:text-slate-950"
+                    @click="searchPlaces"
+                  >
+                    Search
+                  </button>
+                </div>
+
+                <div v-if="placeResults.length" class="mt-3 space-y-2">
+                  <button
+                    v-for="place in placeResults"
+                    :key="place.place_id"
+                    type="button"
+                    class="w-full rounded-2xl bg-slate-50 p-3 text-left text-sm dark:bg-slate-950"
+                    @click="selectPlace(place)"
+                  >
+                    {{ place.display_name }}
+                  </button>
+                </div>
+              </div>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+              <input
+                v-model="routeForm.lat"
+                type="number"
+                step="any"
+                class="input"
+                :class="routeErrors.lat ? 'border-red-500 focus:border-red-500' : ''"
+                placeholder="Latitude"
+              />
+
+              <input
+                v-model="routeForm.lng"
+                type="number"
+                step="any"
+                class="input"
+                :class="routeErrors.lng ? 'border-red-500 focus:border-red-500' : ''"
+                placeholder="Longitude"
+              />
+            </div>
             <textarea v-model="routeForm.notes" class="input min-h-28" placeholder="Notes"></textarea>
+
+            <p
+              v-if="Object.keys(routeErrors).length"
+              class="rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700 dark:bg-red-400/10 dark:text-red-300"
+            >
+              Please fill in the required fields: city, country, latitude and longitude.
+            </p>
 
             <button class="w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white dark:bg-cyan-400 dark:text-slate-950">
                 {{ editingRouteId ? 'Save route stop' : 'Add route stop' }}
@@ -368,6 +571,16 @@ const logout = () => {
                 placeholder="Estimated cost (£ added later)"
               />
             </div>
+            <select v-model="voteForm.routeStopId" class="input">
+                <option value="">Link to route stop optional</option>
+                <option
+                    v-for="stop in routeStore.stops"
+                    :key="stop.id"
+                    :value="stop.id"
+                >
+                    {{ stop.city }}, {{ stop.country }}
+                </option>
+            </select>
 
             <button class="w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white dark:bg-cyan-400 dark:text-slate-950">
               {{ editingVoteId ? 'Save vote item' : 'Add vote item' }}
@@ -448,6 +661,17 @@ const logout = () => {
             </div>
 
             <textarea v-model="costForm.notes" class="input min-h-28" placeholder="Notes"></textarea>
+
+            <select v-model="costForm.routeStopId" class="input">
+                <option value="">Link to route stop optional</option>
+                <option
+                    v-for="stop in routeStore.stops"
+                    :key="stop.id"
+                    :value="stop.id"
+                >
+                    {{ stop.city }}, {{ stop.country }}
+                </option>
+            </select>
 
             <button class="w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white dark:bg-cyan-400 dark:text-slate-950">
               {{ editingCostId ? 'Save cost' : 'Add cost' }}
@@ -604,6 +828,38 @@ const logout = () => {
               </div>
             </div>
           </div>
+        </Teleport>
+        <Teleport to="body">
+            <div
+                v-if="showDeleteRouteImageModal"
+                class="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+            >
+                <div class="w-full max-w-sm rounded-3xl bg-white p-6 text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-white">
+                <h3 class="text-2xl font-bold">Delete image?</h3>
+
+                <p class="mt-3 text-slate-500 dark:text-slate-400">
+                    Are you sure you want to remove this stop image?
+                </p>
+
+                <div class="mt-6 grid grid-cols-2 gap-3">
+                    <button
+                    type="button"
+                    class="rounded-2xl bg-slate-100 px-4 py-3 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    @click="showDeleteRouteImageModal = false"
+                    >
+                    Cancel
+                    </button>
+
+                    <button
+                    type="button"
+                    class="rounded-2xl bg-red-600 px-4 py-3 font-bold text-white"
+                    @click="deleteRouteImage"
+                    >
+                    Delete
+                    </button>
+                </div>
+                </div>
+            </div>
         </Teleport>
     </AppLayout>
 </template>

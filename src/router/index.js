@@ -8,6 +8,7 @@ import PricingView from '../views/PricingView.vue'
 import LoginView from '../views/LoginView.vue'
 import AdminView from '../views/AdminView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
+import StopDetailView from '../views/StopDetailView.vue'
 
 const routes = [
   {
@@ -37,6 +38,10 @@ const routes = [
   {
     path: '/admin',
     component: AdminView
+  },
+  {
+    path: '/route/:id',
+    component: StopDetailView
   },
   {
     path: '/:pathMatch(.*)*',
