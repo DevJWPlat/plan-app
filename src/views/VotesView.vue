@@ -28,16 +28,16 @@ const declinedBy = (activity) => {
 }
 
 const pendingDecisions = computed(() => {
-  if (!authStore.isLoggedIn) return activitiesStore.activities
+  if (!authStore.isLoggedIn) return activitiesStore.activeTripActivities
 
-  return activitiesStore.activities.filter((activity) => {
+  return activitiesStore.activeTripActivities.filter((activity) => {
     return !getVote(activity, authStore.user?.name)
   })
 })
 
 const filteredResults = computed(() => {
-  if (activeFilter.value === 'All') return activitiesStore.activities
-  return activitiesStore.activities.filter((activity) => activity.category === activeFilter.value)
+  if (activeFilter.value === 'All') return activitiesStore.activeTripActivities
+  return activitiesStore.activeTripActivities.filter((activity) => activity.category === activeFilter.value)
 })
 
 const stopName = (activity) => {

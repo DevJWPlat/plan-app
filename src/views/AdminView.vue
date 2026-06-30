@@ -840,11 +840,11 @@ const selectAdminMenuItem = (value) => {
             </button>
           </form>
 
-          <div v-if="pricingStore.costs.length" class="mt-6 space-y-3">
+          <div v-if="pricingStore.activeTripCosts.length" class="mt-6 space-y-3">
             <h4 class="font-bold">Current costs</h4>
 
             <article
-              v-for="cost in pricingStore.costs"
+              v-for="cost in pricingStore.activeTripCosts"
               :key="cost.id"
               class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950"
             >
@@ -1025,11 +1025,11 @@ const selectAdminMenuItem = (value) => {
                 </button>
             </form>
 
-            <div v-if="activitiesStore.activities.length" class="mt-6 space-y-3">
+            <div v-if="activitiesStore.activeTripActivities.length" class="mt-6 space-y-3">
                 <h4 class="font-bold">Current activities</h4>
 
                 <article
-                v-for="activity in activitiesStore.activities"
+                v-for="activity in activitiesStore.activeTripActivities"
                 :key="activity.id"
                 class="rounded-2xl bg-slate-50 p-4 dark:bg-slate-950"
                 >

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { useTripsStore } from './trips'
 
 export const usePricingStore = defineStore('pricing', {
   state: () => ({
@@ -6,8 +7,16 @@ export const usePricingStore = defineStore('pricing', {
   }),
 
   getters: {
-    totalCost: (state) => {
-      return state.costs.reduce((total, cost) => total + Number(cost.amount || 0), 0)
+    activeTripCosts: (state) => {
+      const tripsStore = useTripsStore()
+
+      return state.costs.filter((cost) => {
+        return String(cost.tripId || 1) === String(tripsStore.activeTripId)
+      })
+    },
+
+    totalCost() {
+      return this.activeTripCosts.reduce((total, cost) => total + Number(cost.amount || 0), 0)
     },
   },
 
@@ -17,8 +26,11 @@ export const usePricingStore = defineStore('pricing', {
     },
 
     addCost(cost) {
+      const tripsStore = useTripsStore()
+
       this.costs.push({
         id: Date.now(),
+        tripId: tripsStore.activeTripId,
         ...cost,
       })
 

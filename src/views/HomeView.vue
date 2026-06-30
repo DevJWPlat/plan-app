@@ -1,15 +1,46 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import AppLayout from '../layouts/AppLayout.vue'
 import { useAuthStore } from '../stores/auth'
+import { useTripsStore } from '../stores/trips'
+import { useRouteStore } from '../stores/route'
+import { useActivitiesStore } from '../stores/activities'
+import { usePricingStore } from '../stores/pricing'
+import DashboardCard from '../components/DashboardCard.vue'
+import { Map, MapPinned, Wallet, CheckSquare } from 'lucide-vue-next'
+import TripHero from '../components/TripHero.vue'
+import TripSwitcher from '../components/TripSwitcher.vue'
+
+const routeStore = useRouteStore()
+const activitiesStore = useActivitiesStore()
+const pricingStore = usePricingStore()
 
 const authStore = useAuthStore()
+const tripsStore = useTripsStore()
 
-const flightDate = new Date('2027-07-01T08:00:00')
+const showCreateTrip = ref(false)
+
+const tripForm = ref({
+  title: '',
+  subtitle: '',
+  startDate: '',
+  endDate: '',
+})
+
+const activeTrip = computed(() => tripsStore.activeTrip)
 
 const countdown = computed(() => {
+  if (!activeTrip.value?.startDate) {
+    return {
+      days: 0,
+      hours: 0,
+      minutes: 0,
+    }
+  }
+
   const now = new Date()
-  const diff = flightDate - now
+  const start = new Date(activeTrip.value.startDate)
+  const diff = start - now
 
   if (diff <= 0) {
     return {
@@ -25,54 +56,106 @@ const countdown = computed(() => {
     minutes: Math.floor((diff / 1000 / 60) % 60),
   }
 })
+
+const createTrip = () => {
+  if (!tripForm.value.title) return
+
+  tripsStore.addTrip(tripForm.value)
+
+  tripForm.value = {
+    title: '',
+    subtitle: '',
+    startDate: '',
+    endDate: '',
+  }
+
+  showCreateTrip.value = false
+}
+
+const daysUntilTrip = (trip) => {
+  if (!trip?.startDate) return null
+
+  const today = new Date()
+  const start = new Date(trip.startDate)
+  const diff = start - today
+
+  return Math.max(Math.ceil(diff / 1000 / 60 / 60 / 24), 0)
+}
+
+const pendingDecisions = computed(() => {
+  if (!authStore.isLoggedIn) return activitiesStore.activeTripActivities.length
+
+  return activitiesStore.activeTripActivities.filter((activity) => {
+    return !activity.votes.some((vote) => vote.userName === authStore.user.name)
+  }).length
+})
+
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: 'GBP',
+  }).format(Number(amount || 0))
+}
+
+
 </script>
 
 <template>
     <AppLayout>
-        <section class="rounded-3xl bg-blue-600 p-6 text-white shadow-sm dark:bg-slate-900 dark:border dark:border-slate-800">
-        <p class="text-sm font-medium opacity-90">Holiday planner</p>
-        <h2 class="mt-2 text-3xl font-bold">Balkans Road Trip 2027</h2>
-        <p class="mt-3 text-sm leading-6 opacity-90">
-            Plan the route, vote on stops, compare costs and keep everything in one place.
-        </p>
+        <TripHero
+        :trip="activeTrip"
+        :days-to-go="daysUntilTrip(activeTrip)"
+        />
+
+        <section class="mt-5 grid grid-cols-2 gap-3">
+            <RouterLink to="/votes" class="card">
+                <p class="muted text-sm">Pending decisions</p>
+                <p class="mt-2 text-3xl font-bold">{{ pendingDecisions }}</p>
+            </RouterLink>
+
+            <RouterLink to="/pricing" class="card">
+                <p class="muted text-sm">Budget</p>
+                <p class="mt-2 text-3xl font-bold">{{ formatCurrency(pricingStore.totalCost) }}</p>
+            </RouterLink>
+
+            <RouterLink to="/route" class="card">
+                <p class="muted text-sm">Stops</p>
+                <p class="mt-2 text-3xl font-bold">{{ routeStore.activeTripStops.length }}</p>
+            </RouterLink>
+
+            <RouterLink to="/votes" class="card">
+                <p class="muted text-sm">Activities</p>
+                <p class="mt-2 text-3xl font-bold">{{ activitiesStore.activeTripActivities.length }}</p>
+            </RouterLink>
         </section>
 
         <section class="card mt-5">
-            <div class="flex items-start justify-between gap-4">
+            <div class="flex items-center justify-between">
                 <div>
-                <p class="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-cyan-300">
-                    Flight countdown
-                </p>
-
-                <h3 class="mt-1 text-2xl font-bold">
-                    Not long now
-                </h3>
-
-                <p class="muted mt-2">
-                    Countdown to the flight.
+                <h3 class="text-xl font-bold">Quick actions</h3>
+                <p class="muted mt-1 text-sm">
+                    Jump straight into planning.
                 </p>
                 </div>
 
-                <div class="text-3xl">✈️</div>
+                <Plus class="h-5 w-5 text-slate-400" />
             </div>
 
-            <div class="mt-5 grid grid-cols-3 gap-3">
-                <div class="rounded-2xl bg-slate-50 p-4 text-center dark:bg-slate-950">
-                <p class="text-3xl font-bold">{{ countdown.days }}</p>
-                <p class="muted mt-1 text-xs font-semibold">Days</p>
-                </div>
-
-                <div class="rounded-2xl bg-slate-50 p-4 text-center dark:bg-slate-950">
-                <p class="text-3xl font-bold">{{ countdown.hours }}</p>
-                <p class="muted mt-1 text-xs font-semibold">Hours</p>
-                </div>
-
-                <div class="rounded-2xl bg-slate-50 p-4 text-center dark:bg-slate-950">
-                <p class="text-3xl font-bold">{{ countdown.minutes }}</p>
-                <p class="muted mt-1 text-xs font-semibold">Mins</p>
-                </div>
+            <div class="mt-5 grid grid-cols-2 gap-3">
+                <DashboardCard title="Map" subtitle="View route" to="/map" :icon="Map" />
+                <DashboardCard title="Stops" :subtitle="`${routeStore.activeTripStops.length} planned`" to="/route" :icon="MapPinned" />
+                <DashboardCard title="Decisions" :subtitle="`${pendingDecisions} pending`" to="/votes" :icon="CheckSquare" />
+                <DashboardCard title="Budget" :subtitle="formatCurrency(pricingStore.totalCost)" to="/pricing" :icon="Wallet" />
             </div>
         </section>
+
+        <TripSwitcher
+        :trips="tripsStore.trips"
+        :active-trip-id="tripsStore.activeTripId"
+        :days-until-trip="daysUntilTrip"
+        @select="tripsStore.setActiveTrip"
+        @create="showCreateTrip = true"
+        />
 
         <section
         v-if="!authStore.isLoggedIn"
@@ -147,33 +230,51 @@ const countdown = computed(() => {
                 to="/votes"
                 class="rounded-2xl bg-slate-900 px-4 py-3 text-center text-sm font-bold text-white dark:bg-white dark:text-slate-950"
                 >
-                View votes
+                View decisions
                 </RouterLink>
 
                 <RouterLink
                 to="/pricing"
                 class="rounded-2xl bg-blue-600 px-4 py-3 text-center text-sm font-bold text-white dark:bg-cyan-400 dark:text-slate-950"
                 >
-                View costs
+                View budget
                 </RouterLink>
             </div>
         </section>
 
-        <section class="mt-5 grid gap-4">
-        <RouterLink to="/map" class="card">
-            <h3 class="font-bold">Interactive map</h3>
-            <p class="muted mt-1 text-sm">View the full route and click each stop.</p>
-        </RouterLink>
+        <Teleport to="body">
+        <div
+            v-if="showCreateTrip"
+            class="fixed inset-0 z-[10000] flex items-end bg-slate-950/60 backdrop-blur-sm md:items-center md:justify-center"
+            @click.self="showCreateTrip = false"
+        >
+            <div class="w-full rounded-t-3xl bg-white p-5 text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-white md:max-w-md md:rounded-3xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold">Create trip</h3>
 
-        <RouterLink to="/votes" class="card">
-            <h3 class="font-bold">Open votes</h3>
-            <p class="muted mt-1 text-sm">Approve or decline cities, trips and accommodation.</p>
-        </RouterLink>
+                <button
+                class="rounded-full bg-slate-100 px-3 py-2 text-sm font-bold dark:bg-slate-800"
+                @click="showCreateTrip = false"
+                >
+                Close
+                </button>
+            </div>
 
-        <RouterLink to="/pricing" class="card">
-            <h3 class="font-bold">Trip costs</h3>
-            <p class="muted mt-1 text-sm">Track accommodation, car hire, fuel and trips.</p>
-        </RouterLink>
-        </section>
+            <form class="mt-5 space-y-4" @submit.prevent="createTrip">
+                <input v-model="tripForm.title" class="input" placeholder="Trip name, e.g. Japan 2028" />
+                <input v-model="tripForm.subtitle" class="input" placeholder="Subtitle, e.g. Cherry blossom trip" />
+
+                <div class="grid grid-cols-2 gap-3">
+                <input v-model="tripForm.startDate" type="date" class="input" />
+                <input v-model="tripForm.endDate" type="date" class="input" />
+                </div>
+
+                <button class="w-full rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white dark:bg-cyan-400 dark:text-slate-950">
+                Create trip
+                </button>
+            </form>
+            </div>
+        </div>
+        </Teleport>
     </AppLayout>
 </template>

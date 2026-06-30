@@ -18,11 +18,11 @@ const stop = computed(() => {
 })
 
 const stopActivities = computed(() => {
-  return activitiesStore.activitiesByStop(route.params.id)
+    return activitiesStore.activitiesByStop(route.params.id)
 })
 
 const relatedCosts = computed(() => {
-  return pricingStore.costs.filter((cost) => String(cost.routeStopId) === String(route.params.id))
+  return pricingStore.activeTripCosts.filter((cost) => String(cost.routeStopId) === String(route.params.id))
 })
 
 const stopCostTotal = computed(() => {
