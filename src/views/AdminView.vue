@@ -7,6 +7,7 @@ import { useVotesStore } from '../stores/votes'
 import { usePricingStore } from '../stores/pricing'
 import { Upload } from 'lucide-vue-next'
 import { useActivitiesStore } from '../stores/activities'
+import AdminMenu from '../components/admin/AdminMenu.vue'
 
 const authStore = useAuthStore()
 const routeStore = useRouteStore()
@@ -431,63 +432,10 @@ const selectAdminMenuItem = (value) => {
         <h2 class="text-3xl font-bold">Admin</h2>
         <p class="muted mt-3">Add stops, votes and costs for the trip.</p>
 
-        <section class="mt-6 md:hidden">
-            <button
-                class="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4 font-bold text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
-                @click="showAdminMenu = true"
-            >
-                <span>Admin menu</span>
-                <span class="text-sm text-slate-500 capitalize">{{ activeForm }}</span>
-            </button>
-        </section>
-
-        <section class="mt-6 hidden md:grid grid-cols-5 gap-3">
-            <button
-                class="rounded-2xl border px-2 py-3 text-xs font-bold"
-                :class="activeForm === 'route'
-                    ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
-                    : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
-                @click="activeForm = 'route'"
-            >
-                Route
-            </button>
-            <button
-                class="rounded-2xl border px-2 py-3 text-xs font-bold"
-                :class="activeForm === 'votes'
-                    ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
-                    : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
-                @click="activeForm = 'votes'"
-            >
-                Votes
-            </button>
-            <button
-                class="rounded-2xl border px-2 py-3 text-xs font-bold"
-                :class="activeForm === 'costs'
-                    ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
-                    : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
-                @click="activeForm = 'costs'"
-            >
-                Costs
-            </button>
-            <button
-                class="rounded-2xl border px-2 py-3 text-xs font-bold"
-                :class="activeForm === 'settings'
-                    ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
-                    : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
-                @click="activeForm = 'settings'"
-            >
-                Settings
-            </button>
-            <button
-                class="rounded-2xl border px-4 py-3 text-sm font-bold"
-                :class="activeForm === 'activities'
-                    ? 'border-blue-600 bg-blue-600 text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950'
-                    : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200'"
-                @click="activeForm = 'activities'"
-            >
-                Activities
-            </button>
-        </section>
+        <AdminMenu
+            :active-form="activeForm"
+            @select="activeForm = $event"
+        />
 
         <section v-if="activeForm === 'route'" class="card mt-5">
             <h3 class="text-xl font-bold">
